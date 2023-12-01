@@ -1,0 +1,2 @@
+[workspace]
+members = [ "src/day1", "src/test_others"]
