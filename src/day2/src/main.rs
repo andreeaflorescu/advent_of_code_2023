@@ -43,12 +43,29 @@ fn is_valid_game_for(game: &Game, criteria: &HashMap<String, usize>) -> bool {
     })
 }
 
-fn sum_of_valid_games(games: Vec<Game>, criteria: HashMap<String, usize>) -> usize {
+fn sum_of_valid_games(games: &Vec<Game>, criteria: HashMap<String, usize>) -> usize {
     games
         .iter()
         .filter(|g| is_valid_game_for(g, &criteria))
         .map(|g| g.id)
         .sum()
+}
+
+fn min_cubes_for_valid_game(games: &Vec<Game>) -> usize {
+    let mut power = 0;
+
+    for game in games {
+        let mut hash_set = HashMap::new();
+        for (color, number) in game.sets.iter().flatten() {
+            hash_set
+                .entry(color)
+                .and_modify(|v: &mut usize| *v = usize::max(*number, *v))
+                .or_insert(*number);
+        }
+        power += hash_set.values().product::<usize>();
+    }
+
+    power
 }
 
 pub fn main() {
@@ -61,8 +78,11 @@ pub fn main() {
         ("green".to_string(), 13),
         ("blue".to_string(), 14),
     ]);
-    let sum = sum_of_valid_games(games, criteria);
+    let sum = sum_of_valid_games(&games, criteria);
     println!("Part 1: {sum}"); // 2331
+
+    let power = min_cubes_for_valid_game(&games);
+    println!("Part 2: {power}"); // 71585
 }
 
 #[cfg(test)]
@@ -123,6 +143,21 @@ mod tests {
             ("green".to_string(), 13),
             ("blue".to_string(), 14),
         ]);
-        assert_eq!(sum_of_valid_games(parsed_input, criteria), 8);
+        assert_eq!(sum_of_valid_games(&parsed_input, criteria), 8);
+    }
+
+    #[test]
+    fn test_part2() {
+        let input = vec![
+            "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green",
+            "Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue",
+            "Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red",
+            "Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red",
+            "Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green",
+        ];
+        let input = input.iter().map(|s| String::from(*s)).collect();
+        let parsed_input = parse_as_games(input);
+
+        assert_eq!(min_cubes_for_valid_game(&parsed_input), 2286);
     }
 }
