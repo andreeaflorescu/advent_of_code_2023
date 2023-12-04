@@ -6,19 +6,12 @@ struct Card {
     number: usize,
     winning: Vec<u64>,
     hand: Vec<u64>,
+    wins: usize,
 }
 
 impl Card {
-    fn count_wins(&self) -> usize {
-        self
-            .hand
-            .iter()
-            .filter(|h| self.winning.contains(h))
-            .count()
-    }
-
     fn part1_score(&self) -> u64 {
-        let count = self.count_wins();
+        let count = self.wins;
         match count.checked_sub(1) {
             Some(pow) => 2u64.pow(pow as u32),
             None => 0,
@@ -27,8 +20,7 @@ impl Card {
 
     // Returns the list of scratch cards that you mean for the current card.
     fn scratch_cards(&self) -> Vec<usize> {
-        let count = self.count_wins();
-        (0..count).map(|num| self.number + num).collect()
+        (0..self.wins).map(|num| self.number + num).collect()
     }
 }
 
@@ -54,11 +46,15 @@ impl From<&String> for Card {
         let (winning, hand) = tokens.split_once('|').unwrap();
         let winning = str_to_vec(winning);
         let hand = str_to_vec(hand);
-
+        let wins = hand
+            .iter()
+            .filter(|h| winning.contains(h))
+            .count();
         Self {
             number,
             winning,
             hand,
+            wins
         }
     }
 }
