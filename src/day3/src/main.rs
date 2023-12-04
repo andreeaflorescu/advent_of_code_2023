@@ -1,4 +1,3 @@
-use std::iter::zip;
 use std::path::PathBuf;
 use utils::read_lines;
 
@@ -99,16 +98,19 @@ impl EngineSchematic {
                     if let Some(num) = number {
                         if self.is_part_number(&num) {
                             sum += self.as_usize(&num);
-                            println!("{}", self.as_usize(&num));
-                            // nums.push(self.as_usize(&num));
                         }
                         number = None;
                     }
                 }
             }
+            if let Some(num) = number {
+                if self.is_part_number(&num) {
+                    sum += self.as_usize(&num);
+                }
+                number = None;
+            }
         }
 
-        // (sum, nums)
     sum
     }
 }
@@ -147,5 +149,80 @@ mod tests {
         };
         println!("{:#?}", engine.generate_neighbor_indexes(&num));
         assert_eq!(engine.add_part_numbers(), 4361);
+    }
+
+    #[test]
+    fn test_neighbors() {
+        let input = r#"467..114.
+...*.....
+..35..633
+......#..
+617*.....
+.....+.5.
+..592....
+......75.
+...$.*...
+.664.5987"#.to_string();
+        let input = input.lines().map(String::from).collect::<Vec<String>>();
+        let engine: EngineSchematic = input.into();
+
+        let num = Number {
+            start_col: 0,
+            end_col: 2,
+            row: 0,
+        };
+        assert_eq!(engine.as_usize(&num), 467);
+        let expected_neighbors = vec![(1, 0), (1, 1), (1,2), (1,3), (0, 3)];
+        assert_eq!(engine.generate_neighbor_indexes(&num), expected_neighbors);
+        assert!(engine.is_part_number(&num));
+
+        let num = Number {
+            start_col: 2,
+            end_col: 3,
+            row: 2
+        };
+        assert_eq!(engine.as_usize(&num), 35);
+        let expected_neighbors = vec![(1, 1), (1, 2), (1, 3), (1, 4), (3, 1), (3, 2), (3, 3), (3, 4), (2, 1), (2, 4)];
+        assert_eq!(engine.generate_neighbor_indexes(&num), expected_neighbors);
+        assert!(engine.is_part_number(&num));
+
+        let num = Number {
+            start_col: 7,
+            end_col: 7,
+            row: 5,
+        };
+        assert_eq!(engine.as_usize(&num), 5);
+        let expected_neighbors = vec![(4, 6), (4, 7), (4, 8), (6, 6), (6, 7), (6, 8), (5, 6), (5, 8)];
+        assert_eq!(engine.generate_neighbor_indexes(&num), expected_neighbors);
+        assert!(!engine.is_part_number(&num));
+
+        let num = Number {
+            start_col: 5,
+            end_col: 8,
+            row: 9,
+        };
+        assert_eq!(engine.as_usize(&num), 5987);
+        let expected_neighbors = vec![(8, 4), (8, 5), (8, 6), (8, 7), (8, 8), (9, 4)];
+        assert_eq!(engine.generate_neighbor_indexes(&num), expected_neighbors);
+        assert!(engine.is_part_number(&num));
+
+        let num = Number {
+            start_col: 1,
+            end_col: 3,
+            row: 9,
+        };
+        assert_eq!(engine.as_usize(&num), 664);
+        let expected_neighbors = vec![(8, 0), (8, 1), (8, 2), (8, 3), (8, 4), (9, 0), (9, 4)];
+        assert_eq!(engine.generate_neighbor_indexes(&num), expected_neighbors);
+        assert!(engine.is_part_number(&num));
+    }
+
+    #[test]
+    fn test_part1_from_big_input() {
+        let input = r#".........699....*.........=............15*619.......................*......515....487........................808...............*.....611*121
+.....369.*.....................813..21.................630...................#.................$....................153........11..........."#;
+        let input = input.lines().map(String::from).collect::<Vec<String>>();
+        let engine: EngineSchematic = input.into();
+        assert_eq!(engine.add_part_numbers(), 699 + 15 + 619 + 515 + 611 + 121 + 11);
     }
 }
