@@ -1,7 +1,8 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use utils::read_lines;
 
-#[derive(Debug, Default)]
+#[derive(Copy, Clone, Debug, Default)]
 struct Number {
     start_col: usize,
     end_col: usize,
@@ -75,20 +76,47 @@ impl EngineSchematic {
         indexes
     }
 
-    // Returns Some(num) if `num` is a part number.
-    fn part_number(&self, num: Number) -> Option<Number> {
-        let indexes = self.generate_neighbor_indexes(&num);
+    fn is_part_number(&self, num: &Number) -> bool {
+        let indexes = self.generate_neighbor_indexes(num);
 
         for i in indexes.iter() {
             let value = self.inner[i.0][i.1];
             // a part number is a number that has at least one neighbor
             // a special character. Special means anything but digits and `.`.
             if !value.is_ascii_digit() && value != '.' {
-                return Some(num);
+                return true;
             }
         }
 
-        None
+        false
+    }
+
+    fn gears(&self) -> HashMap<(usize, usize), Vec<Number>> {
+        let numbers = self.numbers();
+        let mut gears: HashMap<(usize, usize), Vec<Number>> = HashMap::new();
+
+        for number in numbers {
+            let indexes = self.generate_neighbor_indexes(&number);
+            for i in indexes.iter() {
+                let value = self.inner[i.0][i.1];
+                // a gear is a number that has one neighbor `*`.
+                if value == '*' {
+                    gears
+                        .entry((i.0, i.1))
+                        .and_modify(|e| e.push(number))
+                        .or_insert(vec![number]);
+                }
+            }
+        }
+        gears
+    }
+
+    fn add_gears(&self) -> usize {
+        self.gears()
+            .values()
+            .filter(|v| v.len() == 2)
+            .map(|v| self.as_usize(&v[0]) * self.as_usize(&v[1]))
+            .sum()
     }
 
     fn as_usize(&self, num: &Number) -> usize {
@@ -99,15 +127,8 @@ impl EngineSchematic {
             .unwrap()
     }
 
-    fn add_part_number(&self, sum: &mut usize, number: Option<Number>) {
-        *sum += number
-            .and_then(|num| self.part_number(num))
-            .map(|num| self.as_usize(&num))
-            .unwrap_or(0);
-    }
-
-    fn add_part_numbers(&self) -> usize {
-        let mut sum = 0;
+    fn numbers(&self) -> Vec<Number> {
+        let mut numbers = Vec::new();
         for (i, line) in self.inner.iter().enumerate() {
             let mut number: Option<Number> = None;
             for (j, val) in line.iter().enumerate() {
@@ -117,14 +138,23 @@ impl EngineSchematic {
                         None => number = Some(Number::new(i, j)),
                     };
                 } else {
-                    self.add_part_number(&mut sum, number);
+                    if let Some(number) = number {
+                        numbers.push(number);
+                    }
                     number = None;
                 }
             }
-            self.add_part_number(&mut sum, number);
         }
 
-        sum
+        numbers
+    }
+
+    fn add_part_numbers(&self) -> usize {
+        self.numbers()
+            .iter()
+            .filter(|n| self.is_part_number(n))
+            .map(|n| self.as_usize(n))
+            .sum()
     }
 }
 
@@ -133,7 +163,8 @@ fn main() {
     let input = read_lines(path);
     let engine: EngineSchematic = input.into();
 
-    println!("Part 1: {}", engine.add_part_numbers()) // 525119
+    println!("Part 1: {}", engine.add_part_numbers()); // 525119
+    println!("Part 2: {}", engine.add_gears()); // 76504829
 }
 
 #[cfg(test)]
@@ -168,5 +199,23 @@ mod tests {
             engine.add_part_numbers(),
             699 + 15 + 619 + 515 + 611 + 121 + 11
         );
+    }
+
+    #[test]
+    fn test_part2_basic() {
+        let input = r#"467..114..
+...*......
+..35..633.
+......#...
+617*......
+.....+.58.
+..592.....
+......755.
+...$.*....
+.664.598.."#
+            .to_string();
+        let input = input.lines().map(String::from).collect::<Vec<String>>();
+        let engine: EngineSchematic = input.into();
+        assert_eq!(engine.add_gears(), 467835);
     }
 }
