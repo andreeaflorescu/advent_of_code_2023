@@ -23,7 +23,7 @@ fn parse_as_games(input: Vec<String>) -> Vec<Game> {
         for set in sets {
             let mut h = HashMap::new();
             for cube in set.split(", ") {
-                let (number, color) = cube.split_once(" ").unwrap();
+                let (number, color) = cube.split_once(' ').unwrap();
                 let number = number.parse::<usize>().unwrap();
                 h.insert(color.to_string(), number);
             }
@@ -43,7 +43,7 @@ fn is_valid_game_for(game: &Game, criteria: &HashMap<String, usize>) -> bool {
     })
 }
 
-fn sum_of_valid_games(games: &Vec<Game>, criteria: HashMap<String, usize>) -> usize {
+fn sum_of_valid_games(games: &[Game], criteria: HashMap<String, usize>) -> usize {
     games
         .iter()
         .filter(|g| is_valid_game_for(g, &criteria))
