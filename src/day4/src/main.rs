@@ -71,21 +71,30 @@ impl Cards {
     fn score_part2(&self) -> usize {
         let mut total = 0;
 
-        // We start with the scratch cards that we get from the first card.
-        for card in self.inner.iter() {
+        // Keep the total wins per card so that we don't have to compute it multiple times.
+        let mut total_wins: Vec<Option<usize>> = vec![None; self.inner.len() + 1];
+        let mut partial_res;
+        for card in self.inner.iter().rev() {
             total += 1;
+            partial_res = 0;
             let mut scratch_cards = card.scratch_cards();
             while !scratch_cards.is_empty() {
-                total += scratch_cards.len();
+                partial_res += scratch_cards.len();
                 let mut new_scratch_cards = vec![];
                 for c in scratch_cards.drain(0..) {
                     let card = &self.inner[c];
-                    let sc = card.scratch_cards();
-                    new_scratch_cards.extend(sc.clone());
+                    if let Some(t_win) = total_wins[card.number] {
+                        partial_res += t_win;
+                    } else {
+                        // we need to manually compute it otherwise.
+                        let sc = card.scratch_cards();
+                        new_scratch_cards.extend(sc.clone());
+                    }
                 }
                 scratch_cards = new_scratch_cards;
-
             }
+            total += partial_res;
+            total_wins[card.number] = Some(partial_res);
         }
         total
     }
