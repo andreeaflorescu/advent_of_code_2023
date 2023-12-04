@@ -8,41 +8,59 @@ struct Number {
     row: usize,
 }
 
+impl Number {
+    // Create a number that starts and ends at `col`.
+    fn new(row: usize, col: usize) -> Number {
+        Number {
+            row,
+            start_col: col,
+            end_col: col,
+        }
+    }
+
+    fn set_end_col(&mut self, end_col: usize) {
+        self.end_col = end_col;
+    }
+}
+
 struct EngineSchematic {
     inner: Vec<Vec<char>>,
 }
 
-impl Into<EngineSchematic> for Vec<String> {
-    fn into(self) -> EngineSchematic {
-        EngineSchematic {
-            inner: self.iter().map(|row| row.chars().collect()).collect::<Vec<Vec<char>>>()
+impl From<Vec<String>> for EngineSchematic {
+    fn from(value: Vec<String>) -> EngineSchematic {
+        // We are adding a boarder to the matrix so that we don't need to have special
+        // cases for row 0 and N, and column 0 and N.
+        const BOARDER_CHAR: char = '.';
+
+        let mut inner = Vec::new();
+        let boarder_row = vec![BOARDER_CHAR; value[0].len() + 2];
+        // 1. The first line needs to be a boarder.
+        inner.push(boarder_row.clone());
+        // 2. We're now pushing the actual input rows.
+        for row in value.iter() {
+            // Each column must start and end with the boarder char.
+            inner.push(
+                format!("{BOARDER_CHAR}{row}{BOARDER_CHAR}")
+                    .chars()
+                    .collect(),
+            );
         }
+        // 3. The last line needs to be a boarder.
+        inner.push(boarder_row);
+
+        EngineSchematic { inner }
     }
 }
 
 impl EngineSchematic {
-    fn num_cols(&self) -> usize {
-        self.inner[0].len()
-    }
-
-    fn num_rows(&self) -> usize {
-        self.inner.len()
-    }
-
     fn generate_neighbor_indexes(&self, num: &Number) -> Vec<(usize, usize)> {
         let mut indexes = Vec::new();
 
-        let mut rows = Vec::new();
-        if num.row != 0 {
-            rows.push(num.row - 1);
-        }
-        if num.row != self.num_rows() - 1 {
-            rows.push(num.row + 1);
-        }
-
-        let col_start = num.start_col.checked_sub(1).unwrap_or(num.start_col);
-        let end_col = usize::min(num.end_col + 1, self.num_cols() - 1);
-        let cols: Vec<usize> = (col_start..=end_col).collect();
+        // The neighbors are the row immediately on top and below the row of the number.
+        let rows = [num.row - 1, num.row + 1];
+        // The columns we are interested include the diagonal.
+        let cols = (num.start_col - 1..=num.end_col + 1).collect::<Vec<usize>>();
 
         for r in rows.iter() {
             for c in cols.iter() {
@@ -50,68 +68,63 @@ impl EngineSchematic {
             }
         }
 
-        if let Some(c) = num.start_col.checked_sub(1) {
-            indexes.push((num.row, c));
-        }
-
-        if num.end_col + 1 < self.num_cols() {
-            indexes.push((num.row, num.end_col + 1));
-        }
+        // The characters before and after our number on the same line are also neighbors.
+        indexes.push((num.row, num.start_col - 1));
+        indexes.push((num.row, num.end_col + 1));
 
         indexes
     }
 
-    fn is_part_number(&self, num: &Number) -> bool {
-        let indexes = self.generate_neighbor_indexes(num);
+    // Returns Some(num) if `num` is a part number.
+    fn part_number(&self, num: Number) -> Option<Number> {
+        let indexes = self.generate_neighbor_indexes(&num);
 
         for i in indexes.iter() {
             let value = self.inner[i.0][i.1];
-            if !value.is_ascii_digit() && !(value == '.') {
-                return true
+            // a part number is a number that has at least one neighbor
+            // a special character. Special means anything but digits and `.`.
+            if !value.is_ascii_digit() && value != '.' {
+                return Some(num);
             }
         }
 
-        false
+        None
     }
 
     fn as_usize(&self, num: &Number) -> usize {
-        self.inner[num.row][num.start_col..=num.end_col].iter().collect::<String>().parse::<usize>().unwrap()
+        self.inner[num.row][num.start_col..=num.end_col]
+            .iter()
+            .collect::<String>()
+            .parse::<usize>()
+            .unwrap()
+    }
+
+    fn add_part_number(&self, sum: &mut usize, number: Option<Number>) {
+        *sum += number
+            .and_then(|num| self.part_number(num))
+            .map(|num| self.as_usize(&num))
+            .unwrap_or(0);
     }
 
     fn add_part_numbers(&self) -> usize {
-        // let mut nums = Vec::new();
         let mut sum = 0;
         for (i, line) in self.inner.iter().enumerate() {
             let mut number: Option<Number> = None;
             for (j, val) in line.iter().enumerate() {
                 if val.is_ascii_digit() {
-                    if let Some(num) = number.as_mut() {
-                        num.end_col = j;
-                    } else {
-                        number = Some(Number {
-                            row: i,
-                            start_col: j,
-                            end_col: j,
-                        });
-                    }
+                    match number.as_mut() {
+                        Some(num) => num.set_end_col(j),
+                        None => number = Some(Number::new(i, j)),
+                    };
                 } else {
-                    if let Some(num) = number {
-                        if self.is_part_number(&num) {
-                            sum += self.as_usize(&num);
-                        }
-                        number = None;
-                    }
+                    self.add_part_number(&mut sum, number);
+                    number = None;
                 }
             }
-            if let Some(num) = number {
-                if self.is_part_number(&num) {
-                    sum += self.as_usize(&num);
-                }
-                number = None;
-            }
+            self.add_part_number(&mut sum, number);
         }
 
-    sum
+        sum
     }
 }
 
@@ -120,12 +133,12 @@ fn main() {
     let input = read_lines(path);
     let engine: EngineSchematic = input.into();
 
-    println!("Part 1: {}", engine.add_part_numbers()) // wrong: 523948
+    println!("Part 1: {}", engine.add_part_numbers()) // 525119
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{EngineSchematic, Number};
+    use crate::EngineSchematic;
 
     #[test]
     fn part1_test() {
@@ -138,83 +151,11 @@ mod tests {
 ..592.....
 ......755.
 ...$.*....
-.664.598.."#.to_string();
+.664.598.."#
+            .to_string();
         let input = input.lines().map(String::from).collect::<Vec<String>>();
         let engine: EngineSchematic = input.into();
-
-        let num = Number {
-            start_col: 2,
-            end_col: 3,
-            row: 1
-        };
-        println!("{:#?}", engine.generate_neighbor_indexes(&num));
         assert_eq!(engine.add_part_numbers(), 4361);
-    }
-
-    #[test]
-    fn test_neighbors() {
-        let input = r#"467..114.
-...*.....
-..35..633
-......#..
-617*.....
-.....+.5.
-..592....
-......75.
-...$.*...
-.664.5987"#.to_string();
-        let input = input.lines().map(String::from).collect::<Vec<String>>();
-        let engine: EngineSchematic = input.into();
-
-        let num = Number {
-            start_col: 0,
-            end_col: 2,
-            row: 0,
-        };
-        assert_eq!(engine.as_usize(&num), 467);
-        let expected_neighbors = vec![(1, 0), (1, 1), (1,2), (1,3), (0, 3)];
-        assert_eq!(engine.generate_neighbor_indexes(&num), expected_neighbors);
-        assert!(engine.is_part_number(&num));
-
-        let num = Number {
-            start_col: 2,
-            end_col: 3,
-            row: 2
-        };
-        assert_eq!(engine.as_usize(&num), 35);
-        let expected_neighbors = vec![(1, 1), (1, 2), (1, 3), (1, 4), (3, 1), (3, 2), (3, 3), (3, 4), (2, 1), (2, 4)];
-        assert_eq!(engine.generate_neighbor_indexes(&num), expected_neighbors);
-        assert!(engine.is_part_number(&num));
-
-        let num = Number {
-            start_col: 7,
-            end_col: 7,
-            row: 5,
-        };
-        assert_eq!(engine.as_usize(&num), 5);
-        let expected_neighbors = vec![(4, 6), (4, 7), (4, 8), (6, 6), (6, 7), (6, 8), (5, 6), (5, 8)];
-        assert_eq!(engine.generate_neighbor_indexes(&num), expected_neighbors);
-        assert!(!engine.is_part_number(&num));
-
-        let num = Number {
-            start_col: 5,
-            end_col: 8,
-            row: 9,
-        };
-        assert_eq!(engine.as_usize(&num), 5987);
-        let expected_neighbors = vec![(8, 4), (8, 5), (8, 6), (8, 7), (8, 8), (9, 4)];
-        assert_eq!(engine.generate_neighbor_indexes(&num), expected_neighbors);
-        assert!(engine.is_part_number(&num));
-
-        let num = Number {
-            start_col: 1,
-            end_col: 3,
-            row: 9,
-        };
-        assert_eq!(engine.as_usize(&num), 664);
-        let expected_neighbors = vec![(8, 0), (8, 1), (8, 2), (8, 3), (8, 4), (9, 0), (9, 4)];
-        assert_eq!(engine.generate_neighbor_indexes(&num), expected_neighbors);
-        assert!(engine.is_part_number(&num));
     }
 
     #[test]
@@ -223,6 +164,9 @@ mod tests {
 .....369.*.....................813..21.................630...................#.................$....................153........11..........."#;
         let input = input.lines().map(String::from).collect::<Vec<String>>();
         let engine: EngineSchematic = input.into();
-        assert_eq!(engine.add_part_numbers(), 699 + 15 + 619 + 515 + 611 + 121 + 11);
+        assert_eq!(
+            engine.add_part_numbers(),
+            699 + 15 + 619 + 515 + 611 + 121 + 11
+        );
     }
 }
