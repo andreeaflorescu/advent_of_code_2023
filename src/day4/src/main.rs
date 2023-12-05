@@ -46,15 +46,12 @@ impl From<&String> for Card {
         let (winning, hand) = tokens.split_once('|').unwrap();
         let winning = str_to_vec(winning);
         let hand = str_to_vec(hand);
-        let wins = hand
-            .iter()
-            .filter(|h| winning.contains(h))
-            .count();
+        let wins = hand.iter().filter(|h| winning.contains(h)).count();
         Self {
             number,
             winning,
             hand,
-            wins
+            wins,
         }
     }
 }
