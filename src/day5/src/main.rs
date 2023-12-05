@@ -34,8 +34,8 @@ impl From<&str> for SeedRange {
             .map(|v| v.parse::<usize>().unwrap())
             .collect::<Vec<usize>>();
         Self {
-            source: tokens[0],
-            destination: tokens[1],
+            source: tokens[1],
+            destination: tokens[0],
             length: tokens[2],
         }
     }
@@ -143,7 +143,15 @@ impl From<Vec<String>> for Almanac {
 
 impl Almanac {
     fn find_lowest_location(&self) -> usize {
-        todo!()
+        let mut result = self.seeds.clone();
+        for seed_map in self.maps.iter() {
+            result = result
+                .iter()
+                .map(|s| seed_map.map_source_value(*s))
+                .collect();
+        }
+
+        *result.iter().min().unwrap()
     }
 }
 
@@ -237,8 +245,17 @@ humidity-to-location map:
             &SeedMap {
                 source_category: Category::Humidity,
                 destination_category: Category::Location,
-                map: vec![SeedRange::new(60, 56, 37), SeedRange::new(56, 93, 4),],
+                map: vec![SeedRange::new(56, 60, 37), SeedRange::new(93, 56, 4),],
             }
         );
+        assert_eq!(almanac.maps[0].map_source_value(79), 81);
+    }
+
+    #[test]
+    fn test_part1() {
+        let input = test_input();
+        let almanac = Almanac::from(input);
+
+        assert_eq!(almanac.find_lowest_location(), 35);
     }
 }
