@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use utils::read_lines;
 
-#[derive(Debug, Default, Copy, Clone, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 struct SeedRange {
     source: usize,
     destination: usize,
@@ -9,6 +9,7 @@ struct SeedRange {
 }
 
 impl SeedRange {
+    #[cfg(test)]
     fn new(source: usize, destination: usize, length: usize) -> Self {
         Self {
             source,
@@ -18,12 +19,12 @@ impl SeedRange {
     }
 
     // Maps `source` to a destination, returns `None` if `source` is not in range.
-    fn map_source(&self, source: usize) -> Option<usize> {
+    fn find_destination_for(&self, source: usize) -> Option<usize> {
         if source >= self.source && source < self.source + self.length {
             let offset = source - self.source;
             return Some(self.destination + offset);
         }
-        return None;
+        None
     }
 }
 
@@ -93,10 +94,10 @@ impl SeedMap {
     }
 
     // Returns the destination of the passed `source`.
-    fn map_source_value(&self, source: usize) -> usize {
+    fn find_destination_for(&self, source: usize) -> usize {
         self.map
             .iter()
-            .find_map(|r| r.map_source(source))
+            .find_map(|r| r.find_destination_for(source))
             .unwrap_or(source)
     }
 }
@@ -142,16 +143,34 @@ impl From<Vec<String>> for Almanac {
 }
 
 impl Almanac {
-    fn find_lowest_location(&self) -> usize {
-        let mut result = self.seeds.clone();
-        for seed_map in self.maps.iter() {
-            result = result
-                .iter()
-                .map(|s| seed_map.map_source_value(*s))
-                .collect();
-        }
+    fn find_location_for_seed(&self, seed: &usize) -> usize {
+        self.maps
+            .iter()
+            .fold(*seed, |res, seed_map| seed_map.find_destination_for(res))
+    }
 
-        *result.iter().min().unwrap()
+    fn find_lowest_location(&self) -> usize {
+        self.seeds
+            .iter()
+            .map(|seed| self.find_location_for_seed(seed))
+            .min()
+            .unwrap()
+    }
+
+    fn find_lowest_location_with_seed_range(&self) -> usize {
+        // this has to go through 1680883088 numbers, so it's rather slow.
+        self.seeds
+            .chunks(2)
+            .map(|window| {
+                let start = window[0];
+                let end = start + window[1];
+                (start..end)
+                    .map(|seed| self.find_location_for_seed(&seed))
+                    .min()
+                    .unwrap()
+            })
+            .min()
+            .unwrap()
     }
 }
 
@@ -160,6 +179,7 @@ fn main() {
     let input = read_lines(path);
     let almanac = Almanac::from(input);
     println!("Part 1: {}", almanac.find_lowest_location());
+    println!("Part 2: {}", almanac.find_lowest_location_with_seed_range()); // 99751240
 }
 
 #[cfg(test)]
@@ -214,9 +234,9 @@ humidity-to-location map:
             destination: 10,
             length: 5,
         };
-        assert_eq!(r.map_source(0), Some(10));
-        assert_eq!(r.map_source(5), None);
-        assert_eq!(r.map_source(4), Some(14));
+        assert_eq!(r.find_destination_for(0), Some(10));
+        assert_eq!(r.find_destination_for(5), None);
+        assert_eq!(r.find_destination_for(4), Some(14));
     }
 
     #[test]
@@ -227,11 +247,11 @@ humidity-to-location map:
             map: vec![SeedRange::new(0, 5, 10), SeedRange::new(20, 30, 5)],
         };
 
-        assert_eq!(seed_map.map_source_value(5), 10);
-        assert_eq!(seed_map.map_source_value(21), 31);
-        assert_eq!(seed_map.map_source_value(10), 10);
-        assert_eq!(seed_map.map_source_value(15), 15);
-        assert_eq!(seed_map.map_source_value(39), 39);
+        assert_eq!(seed_map.find_destination_for(5), 10);
+        assert_eq!(seed_map.find_destination_for(21), 31);
+        assert_eq!(seed_map.find_destination_for(10), 10);
+        assert_eq!(seed_map.find_destination_for(15), 15);
+        assert_eq!(seed_map.find_destination_for(39), 39);
     }
 
     #[test]
@@ -248,7 +268,7 @@ humidity-to-location map:
                 map: vec![SeedRange::new(56, 60, 37), SeedRange::new(93, 56, 4),],
             }
         );
-        assert_eq!(almanac.maps[0].map_source_value(79), 81);
+        assert_eq!(almanac.maps[0].find_destination_for(79), 81);
     }
 
     #[test]
@@ -257,5 +277,13 @@ humidity-to-location map:
         let almanac = Almanac::from(input);
 
         assert_eq!(almanac.find_lowest_location(), 35);
+    }
+
+    #[test]
+    fn test_part2() {
+        let input = test_input();
+        let almanac = Almanac::from(input);
+
+        assert_eq!(almanac.find_lowest_location_with_seed_range(), 46);
     }
 }
