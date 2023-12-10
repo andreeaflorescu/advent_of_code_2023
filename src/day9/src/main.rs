@@ -20,19 +20,23 @@ impl From<&String> for ValueHistory {
     }
 }
 
+fn compute_diffs_array(inner: &[isize]) -> Vec<isize> {
+    inner
+        .windows(2)
+        .map(|v| v[1] - v[0])
+        .collect::<Vec<isize>>()
+}
+
+fn all_zeroes(inner: &[isize]) -> bool {
+    inner.iter().all(|v| *v == 0)
+}
+
 impl ValueHistory {
     fn predict_next(&self) -> isize {
-        let mut diffs = self
-            .inner
-            .windows(2)
-            .map(|v| v[1] - v[0])
-            .collect::<Vec<isize>>();
+        let mut diffs = compute_diffs_array(&self.inner);
         let mut next_value = *diffs.last().unwrap();
-        while !diffs.iter().all(|v| *v == 0) {
-            diffs = diffs
-                .windows(2)
-                .map(|v| v[1] - v[0])
-                .collect::<Vec<isize>>();
+        while !all_zeroes(&diffs) {
+            diffs = compute_diffs_array(&diffs);
             next_value += *diffs.last().unwrap_or(&0);
         }
 
@@ -40,15 +44,9 @@ impl ValueHistory {
     }
 
     fn predict_previous(&self) -> isize {
-        let mut diffs = self
-            .inner
-            .windows(2)
-            .map(|v| v[1] - v[0])
-            .collect::<Vec<isize>>();
+        let mut diffs = compute_diffs_array(&self.inner);
 
         // We keep the difference from the first extrapolation in `previous_diff`.
-        let mut previous_diff = diffs[0];
-        let mut iter = 1;
         // For finding out how much is `previous_diff`, we have to use the
         // following formula:
         // val_0 = val_1 - diff_1[0];
@@ -59,11 +57,10 @@ impl ValueHistory {
         // In this notation diff_1[0] we convey the following meaning:
         //  * _n -> the extrapolation number
         //  * diff_n -> array containing all the nth extrapolations
-        while !diffs.iter().all(|v| *v == 0) {
-            diffs = diffs
-                .windows(2)
-                .map(|v| v[1] - v[0])
-                .collect::<Vec<isize>>();
+        let mut previous_diff = diffs[0];
+        let mut iter = 1;
+        while !all_zeroes(&diffs) {
+            diffs = compute_diffs_array(&diffs);
             if iter % 2 == 0 {
                 previous_diff += diffs[0];
             } else {
@@ -136,7 +133,6 @@ mod tests {
         let input = "1 3 6 10 15 21".to_string();
         let history = ValueHistory::from(&input);
         assert_eq!(history.predict_previous(), 0);
-        // -0 + 1 - 2 = -1
     }
 
     #[test]
