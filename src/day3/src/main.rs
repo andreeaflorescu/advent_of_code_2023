@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use utils::read_lines;
+use utils::{read_lines, with_boarder};
 
 #[derive(Copy, Clone, Debug, Default)]
 struct Number {
@@ -33,24 +33,7 @@ impl From<Vec<String>> for EngineSchematic {
         // We are adding a boarder to the matrix so that we don't need to have special
         // cases for row 0 and N, and column 0 and N.
         const BOARDER_CHAR: char = '.';
-
-        let mut inner = Vec::new();
-        let boarder_row = vec![BOARDER_CHAR; value[0].len() + 2];
-        // 1. The first line needs to be a boarder.
-        inner.push(boarder_row.clone());
-        // 2. We're now pushing the actual input rows.
-        for row in value.iter() {
-            // Each column must start and end with the boarder char.
-            inner.push(
-                format!("{BOARDER_CHAR}{row}{BOARDER_CHAR}")
-                    .chars()
-                    .collect(),
-            );
-        }
-        // 3. The last line needs to be a boarder.
-        inner.push(boarder_row);
-
-        EngineSchematic { inner }
+        EngineSchematic { inner: with_boarder(value, BOARDER_CHAR) }
     }
 }
 

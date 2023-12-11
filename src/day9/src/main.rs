@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use utils::{read_lines, as_vec};
+use utils::{as_vec, read_lines};
 
 struct Report {
     inner: Vec<ValueHistory>,
