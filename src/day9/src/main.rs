@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use utils::read_lines;
+use utils::{read_lines, as_vec};
 
 struct Report {
     inner: Vec<ValueHistory>,
@@ -12,10 +12,7 @@ struct ValueHistory {
 
 impl From<&String> for ValueHistory {
     fn from(value: &String) -> Self {
-        let inner = value
-            .split(' ')
-            .map(|v| v.parse::<isize>().unwrap())
-            .collect::<Vec<isize>>();
+        let inner = as_vec(value.as_str());
         ValueHistory { inner }
     }
 }
