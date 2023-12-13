@@ -30,6 +30,16 @@ struct Image {
 }
 
 impl Image {
+    fn new(lines: Vec<String>, expansion_factor: usize) -> Self {
+        let mut image = Image {
+            galaxies: parse_galaxies(lines, expansion_factor),
+        };
+
+        image.expand_columns(expansion_factor);
+
+        image
+    }
+
     fn galaxy_pairs(&self) -> Vec<[Position; 2]> {
         let mut pairs = Vec::new();
         for i in 0..self.galaxies.len() {
@@ -48,7 +58,7 @@ impl Image {
         pairs.iter().map(|pair| pair[0].distance_to(&pair[1])).sum()
     }
 
-    fn expand_columns(&mut self) {
+    fn expand_columns(&mut self, expansion_factor: usize) {
         let mut columns = self
             .galaxies
             .iter()
@@ -61,7 +71,7 @@ impl Image {
         let mut empty_counter = 0;
         for c in 0..=max_column {
             if !columns.contains(&c) {
-                empty_counter += 1;
+                empty_counter += expansion_factor - 1;
             }
             offsets.push(empty_counter);
         }
@@ -72,7 +82,7 @@ impl Image {
     }
 }
 
-fn parse_galaxies(input: Vec<String>) -> Vec<Position> {
+fn parse_galaxies(input: Vec<String>, expansion_factor: usize) -> Vec<Position> {
     let mut galaxies = Vec::new();
 
     let mut x = 0;
@@ -87,7 +97,7 @@ fn parse_galaxies(input: Vec<String>) -> Vec<Position> {
         }
         // if we don't have any galaxies on the line, we need to expand the space.
         if !any_galaxy {
-            x += 1;
+            x += expansion_factor - 1;
         }
         x += 1;
     }
@@ -95,23 +105,13 @@ fn parse_galaxies(input: Vec<String>) -> Vec<Position> {
     galaxies
 }
 
-impl From<Vec<String>> for Image {
-    fn from(lines: Vec<String>) -> Self {
-        let mut image = Image {
-            galaxies: parse_galaxies(lines),
-        };
-
-        image.expand_columns();
-
-        image
-    }
-}
-
 fn main() {
     let path = PathBuf::from("src/day11/input.txt");
     let lines = read_lines(path);
-    let image = Image::from(lines);
+    let image = Image::new(lines.clone(), 2);
     println!("Part 1: {}", image.sum_of_shortest_path()); // 9918828
+    let image = Image::new(lines, 1000000);
+    println!("Part 2: {}", image.sum_of_shortest_path());
 }
 
 #[cfg(test)]
@@ -149,7 +149,17 @@ mod tests {
     #[test]
     fn test_part1() {
         let input: Vec<String> = part_1_input();
-        let image = Image::from(input);
+        let image = Image::new(input, 2);
         assert_eq!(image.sum_of_shortest_path(), 374);
+    }
+
+    #[test]
+    fn test_part2() {
+        let input: Vec<String> = part_1_input();
+        let image = Image::new(input.clone(), 10);
+        assert_eq!(image.sum_of_shortest_path(), 1030);
+
+        let image = Image::new(input, 100);
+        assert_eq!(image.sum_of_shortest_path(), 8410);
     }
 }
