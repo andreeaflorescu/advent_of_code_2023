@@ -33,13 +33,10 @@ impl Image {
     fn galaxy_pairs(&self) -> Vec<[Position; 2]> {
         let mut pairs = Vec::new();
         for i in 0..self.galaxies.len() {
-            for j in 0..self.galaxies.len() {
+            for j in i+1..self.galaxies.len() {
                 if i != j {
-                    let mut pair = [self.galaxies[i], self.galaxies[j]];
-                    pair.sort();
-                    if !pairs.contains(&pair) {
-                        pairs.push(pair);
-                    }
+                    let pair = [self.galaxies[i], self.galaxies[j]];
+                    pairs.push(pair);
                 }
             }
         }
