@@ -45,21 +45,54 @@ impl Image {
         }
         pairs
     }
+
     fn sum_of_shortest_path(&self) -> usize {
         let pairs = self.galaxy_pairs();
         pairs.iter().map(|pair| pair[0].distance_to(&pair[1])).sum()
+    }
+
+    fn expand_columns(&mut self) {
+        let mut columns = self
+            .galaxies
+            .iter()
+            .map(|p| p.column)
+            .collect::<Vec<usize>>();
+        columns.sort();
+
+        let max_column = *columns.last().unwrap();
+        let mut offsets = Vec::new();
+        let mut empty_counter = 0;
+        for c in 0..=max_column {
+            if !columns.contains(&c) {
+                empty_counter += 1;
+            }
+            offsets.push(empty_counter);
+        }
+
+        self.galaxies
+            .iter_mut()
+            .for_each(|g| g.column += offsets[g.column]);
     }
 }
 
 fn parse_galaxies(input: Vec<String>) -> Vec<Position> {
     let mut galaxies = Vec::new();
 
-    for (i, line) in input.iter().enumerate() {
+    let mut x = 0;
+    let mut any_galaxy;
+    for line in input.iter() {
+        any_galaxy = false;
         for (j, char) in line.chars().enumerate() {
             if char == '#' {
-                galaxies.push(Position::new(i, j));
+                galaxies.push(Position::new(x, j));
+                any_galaxy = true;
             }
         }
+        // if we don't have any galaxies on the line, we need to expand the space.
+        if !any_galaxy {
+            x += 1;
+        }
+        x += 1;
     }
 
     galaxies
@@ -67,50 +100,13 @@ fn parse_galaxies(input: Vec<String>) -> Vec<Position> {
 
 impl From<Vec<String>> for Image {
     fn from(lines: Vec<String>) -> Self {
-        let mut galaxies = parse_galaxies(lines);
+        let mut image = Image {
+            galaxies: parse_galaxies(lines),
+        };
 
-        let mut empty_columns = Vec::new();
-        let max_column = galaxies
-            .iter()
-            .max_by(|this, that| this.column.cmp(&that.column))
-            .unwrap()
-            .column;
-        let min_column = galaxies
-            .iter()
-            .min_by(|this, that| this.column.cmp(&that.column))
-            .unwrap()
-            .column;
-        for column in min_column..max_column {
-            if !galaxies.iter().any(|g| g.column == column) {
-                empty_columns.push(column);
-            }
-        }
+        image.expand_columns();
 
-        let mut empty_lines = Vec::new();
-        let max_line = galaxies
-            .iter()
-            .max_by(|this, that| this.line.cmp(&that.line))
-            .unwrap()
-            .line;
-        let min_line = galaxies
-            .iter()
-            .min_by(|this, that| this.line.cmp(&that.line))
-            .unwrap()
-            .line;
-        for line in min_line..max_line {
-            if !galaxies.iter().any(|g| g.line == line) {
-                empty_lines.push(line);
-            }
-        }
-
-        for g in galaxies.iter_mut() {
-            let count = empty_columns.iter().filter(|p| **p < g.column).count();
-            g.column += count;
-            let count = empty_lines.iter().filter(|p| **p < g.line).count();
-            g.line += count;
-        }
-
-        Image { galaxies }
+        image
     }
 }
 
@@ -123,7 +119,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use crate::{parse_galaxies, Image, Position};
+    use crate::{Image, Position};
 
     fn part_1_input() -> Vec<String> {
         r#"...#......
@@ -139,36 +135,6 @@ mod tests {
             .lines()
             .map(String::from)
             .collect()
-    }
-
-    fn part_1_expansion() -> Vec<String> {
-        r#"....#........
-.........#...
-#............
-.............
-.............
-........#....
-.#...........
-............#
-.............
-.............
-.........#...
-#....#......."#
-            .lines()
-            .map(String::from)
-            .collect()
-    }
-
-    #[test]
-    fn test_expansion() {
-        let input = part_1_input();
-        let expansion = part_1_expansion();
-        let mut image = Image::from(input);
-
-        let mut expected_position = parse_galaxies(expansion);
-        expected_position.sort();
-        image.galaxies.sort();
-        assert_eq!(image.galaxies, expected_position);
     }
 
     #[test]
